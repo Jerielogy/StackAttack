@@ -7,6 +7,7 @@ public class BoardManager : NetworkBehaviour
     public int width = 14;
     public int height = 22;
     public Transform[,] grid;
+    public int playerIndex; // 0 = P1, 1 = P2
 
     void Awake()
     {
@@ -34,38 +35,21 @@ public class BoardManager : NetworkBehaviour
     // --- 1. THE DELETE LOGIC ---
     public void DeleteRow(int y)
     {
-        // A. Clear the Logic Grid (Server Side)
+        // 1?? Clear the row
         for (int x = 0; x < width; ++x)
         {
             if (grid[x, y] != null)
             {
-                Transform blockTransform = grid[x, y];
+                Destroy(grid[x, y].gameObject);
                 grid[x, y] = null;
-
-                // Network Destroy logic
-                if (blockTransform.parent != null)
-                {
-                    NetworkIdentity parentId = blockTransform.parent.GetComponent<NetworkIdentity>();
-                    int siblingIndex = blockTransform.GetSiblingIndex();
-
-                    if (NetworkClient.localPlayer != null)
-                    {
-                        PlayerStats stats = NetworkClient.localPlayer.GetComponent<PlayerStats>();
-                        if (stats != null && parentId != null)
-                        {
-                            stats.CmdDestroyChild(parentId, siblingIndex);
-                        }
-                    }
-                }
-                else
-                {
-                    Destroy(blockTransform.gameObject);
-                }
             }
         }
 
-        // B. Force Visual Update on ALL Clients (Fixes the "Floating Blocks" issue)
-        RpcVisualShift(y);
+        // 2?? Call RPC only if this is the server
+        if (isServer)
+        {
+            RpcVisualShift(y);
+        }
     }
 
     // --- 2. THE NEW VISUAL FIX ---
@@ -150,6 +134,7 @@ public class BoardManager : NetworkBehaviour
 
         if (linesClearedThisTurn > 0)
         {
+            // 1. Add score
             if (NetworkClient.localPlayer != null)
             {
                 PlayerStats stats = NetworkClient.localPlayer.GetComponent<PlayerStats>();
@@ -167,6 +152,18 @@ public class BoardManager : NetworkBehaviour
                     stats.CmdAddScore(points);
                 }
             }
+
+            if (linesClearedThisTurn > 0)
+            {
+                // Send garbage to opponent
+                GarbageManager gm = FindObjectOfType<GarbageManager>();
+                if (gm != null)
+                {
+                    gm.SendGarbage(linesClearedThisTurn, playerIndex);
+                }
+            }
+
         }
+
     }
 }

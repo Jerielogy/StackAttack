@@ -162,17 +162,21 @@ public class Piece : NetworkBehaviour
         return true;
     }
 
-    void UpdateGrid()
+    public void UpdateGrid()
     {
         if (board == null) return;
 
-        // Remove old children from grid
-        for (int y = 0; y < board.height; ++y)
-            for (int x = 0; x < board.width; ++x)
+        // Clear old positions
+        for (int y = 0; y < board.height; y++)
+        {
+            for (int x = 0; x < board.width; x++)
+            {
                 if (board.grid[x, y] != null && board.grid[x, y].parent == transform)
                     board.grid[x, y] = null;
+            }
+        }
 
-        // Add new children to grid
+        // Set new positions
         foreach (Transform child in transform)
         {
             Vector2 v = board.RoundVec2(child.position);

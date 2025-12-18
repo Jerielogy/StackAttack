@@ -2541,6 +2541,75 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1571140553}
   m_CullTransparentMesh: 1
+--- !u!1 &1596230716
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1596230719}
+  - component: {fileID: 1596230718}
+  - component: {fileID: 1596230717}
+  m_Layer: 0
+  m_Name: GarbageManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1596230717
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1596230716}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b3b011cd51bb54b4e8a6776d1292db22, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0
+  boardP1: {fileID: 1660118836}
+  boardP2: {fileID: 2041516677}
+  garbageBlockPrefab: {fileID: 7387103824048054892, guid: 457e0da71cf383f4a8729f1bfad03a23, type: 3}
+  garbageDuration: 5
+--- !u!114 &1596230718
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1596230716}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9b91ecbcc199f4492b9a91e820070131, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sceneId: 1022568345
+  _assetId: 0
+  serverOnly: 0
+  visibility: 0
+  hasSpawned: 0
+--- !u!4 &1596230719
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1596230716}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 9.5, y: 11, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1660118834
 GameObject:
   m_ObjectHideFlags: 0
@@ -2594,9 +2663,9 @@ MonoBehaviour:
   syncDirection: 0
   syncMode: 0
   syncInterval: 0
+  playerIndex: 0
   width: 14
   height: 22
-  garbageBlockPrefab: {fileID: 7387103824048054892, guid: 457e0da71cf383f4a8729f1bfad03a23, type: 3}
 --- !u!114 &1660118837
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2731,9 +2800,9 @@ MonoBehaviour:
   syncDirection: 0
   syncMode: 0
   syncInterval: 0
+  playerIndex: 1
   width: 14
   height: 22
-  garbageBlockPrefab: {fileID: 7387103824048054892, guid: 457e0da71cf383f4a8729f1bfad03a23, type: 3}
 --- !u!4 &2041516678
 Transform:
   m_ObjectHideFlags: 0
@@ -2975,3 +3044,4 @@ SceneRoots:
   - {fileID: 1125538753}
   - {fileID: 571821674}
   - {fileID: 986174581}
+  - {fileID: 1596230719}
