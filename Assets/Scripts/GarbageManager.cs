@@ -14,19 +14,10 @@ public class GarbageManager : NetworkBehaviour
     {
         if (lines <= 1) return;
 
-        int garbageLines = 0;
-        switch (lines)
-        {
-            case 2: garbageLines = 1; break;
-            case 3: garbageLines = 2; break;
-            case 4: garbageLines = 4; break;
-            default: garbageLines = lines; break;
-        }
+        int garbageLines = lines switch { 2 => 1, 3 => 2, 4 => 4, _ => lines };
+        int targetIndex = (senderPlayerIndex == 0) ? 1 : 0;
 
-        BoardManager targetBoard = (senderPlayerIndex == 0) ? boardP2 : boardP1;
-        if (targetBoard == null) return;
-
-        RpcReceiveGarbage(garbageLines, targetBoard.playerIndex);
+        RpcReceiveGarbage(garbageLines, targetIndex);
     }
 
     [ClientRpc]
@@ -43,58 +34,41 @@ public class GarbageManager : NetworkBehaviour
 
     IEnumerator AddTemporaryGarbageLine(BoardManager board)
     {
-        int width = board.width;
-        Transform[] newGarbage = new Transform[width];
-
-        // Push existing blocks up in grid
+        // Shift existing blocks up
         Piece[] allPieces = FindObjectsOfType<Piece>(true);
-
         foreach (Piece piece in allPieces)
         {
-            // Only move pieces on this board
             if (Vector3.Distance(piece.transform.position, board.transform.position) > 20) continue;
-
-            // Shift the whole piece up by 1
             piece.transform.position += Vector3.up;
-
-            // Update the piece’s grid positions
-            piece.UpdateGrid(); // Make sure UpdateGrid() in Piece is public
+            piece.UpdateGrid();
         }
 
-        // Add solid garbage line at bottom
-        for (int x = 0; x < width; x++)
+        // Spawn Garbage Row
+        Transform[] rowItems = new Transform[board.width];
+        for (int x = 0; x < board.width; x++)
         {
             Vector3 pos = board.transform.position + new Vector3(x, 0, 0);
             GameObject block = Instantiate(garbageBlockPrefab, pos, Quaternion.identity);
-            newGarbage[x] = block.transform;
-            board.grid[x, 0] = newGarbage[x];
+            rowItems[x] = block.transform;
+            board.grid[x, 0] = rowItems[x];
         }
 
-        // Wait garbageDuration
         yield return new WaitForSeconds(garbageDuration);
 
-        // Remove garbage and shift everything above down
-        for (int x = 0; x < width; x++)
+        // Remove Garbage
+        for (int x = 0; x < board.width; x++)
         {
-            if (newGarbage[x] != null)
+            if (rowItems[x] != null)
             {
-                Destroy(newGarbage[x].gameObject);
+                Destroy(rowItems[x].gameObject);
                 board.grid[x, 0] = null;
             }
         }
 
-        // Shift everything down after garbage disappears
+        // Shift everything back down
         for (int y = 1; y < board.height; y++)
         {
-            for (int x = 0; x < width; x++)
-            {
-                if (board.grid[x, y] != null)
-                {
-                    board.grid[x, y - 1] = board.grid[x, y];
-                    board.grid[x, y] = null;
-                    board.grid[x, y - 1].position += Vector3.down;
-                }
-            }
+            board.DecreaseRow(y);
         }
     }
 }

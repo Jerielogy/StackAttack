@@ -4,44 +4,20 @@ using Mirror;
 
 public class MainMenu : MonoBehaviour
 {
-    [Header("UI")]
     public InputField addressInput;
-
     NetworkManager networkManager;
 
     void Start()
     {
         networkManager = NetworkManager.singleton;
-
-        if (addressInput != null)
-            addressInput.text = "localhost"; // default for LAN
+        if (addressInput != null) addressInput.text = "localhost";
     }
 
-    // HOST BUTTON
-    public void HostGame()
-    {
-        if (!NetworkServer.active && !NetworkClient.active)
-        {
-            networkManager.StartHost();
-        }
-    }
-
-    // JOIN BUTTON
+    public void HostGame() { if (!NetworkClient.active) networkManager.StartHost(); }
     public void JoinGame()
     {
-        if (addressInput != null)
-            networkManager.networkAddress = addressInput.text;
-
-        if (!NetworkClient.active)
-        {
-            networkManager.StartClient();
-        }
+        if (addressInput != null) networkManager.networkAddress = addressInput.text;
+        networkManager.StartClient();
     }
-
-    // QUIT BUTTON
-    public void QuitGame()
-    {
-        Application.Quit();
-        Debug.Log("Game Quit");
-    }
+    public void QuitGame() => Application.Quit();
 }

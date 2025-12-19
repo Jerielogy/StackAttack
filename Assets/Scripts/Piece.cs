@@ -3,160 +3,111 @@ using Mirror;
 
 public class Piece : NetworkBehaviour
 {
-    // Make sure these match the variable names you used before!
     float lastFall = 0;
-
-    // We need a reference to the specific board this piece is on
     BoardManager board;
 
     void Start()
     {
-        // 1. FIND THE CORRECT BOARD AUTOMATICALLY
+        // 1. Detect Board
         if (transform.position.x < 30)
-        {
-            GameObject env = GameObject.Find("Environment_P1");
-            if (env != null) board = env.GetComponent<BoardManager>();
-        }
+            board = GameObject.Find("Environment_P1")?.GetComponent<BoardManager>();
         else
+            board = GameObject.Find("Environment_P2")?.GetComponent<BoardManager>();
+
+        // 2. SAFETY CHECK: If this is a preview piece
+        if (transform.parent != null && transform.parent.name.Contains("Border"))
         {
-            GameObject env = GameObject.Find("Environment_P2");
-            if (env != null) board = env.GetComponent<BoardManager>();
+            // Fix: Force small scale for preview
+            transform.localScale = new Vector3(0.3f, 0.3f, 0.3f);
+            this.enabled = false;
+            return;
         }
 
-        // --- NEW: GAME OVER CHECK ---
-        // We check immediately if the spawn position is valid.
-        // If IsValidGridPos returns FALSE right now, it means we spawned INSIDE another block.
+        // 3. Game Over Check
         if (!IsValidGridPos())
         {
-            Debug.Log("GAME OVER!");
-
-            // 1. Stop this script so the player can't move the overlapping block
-            enabled = false;
-
-            // 2. Tell the PlayerStats to trigger the Game Over screen
-            if (NetworkClient.localPlayer != null)
+            this.enabled = false;
+            if (isOwned && NetworkClient.localPlayer != null)
             {
-                PlayerStats stats = NetworkClient.localPlayer.GetComponent<PlayerStats>();
-                if (stats != null)
-                {
-                    // This function stops the game and shows "Game Over" text
-                    stats.TargetGameOver();
-                }
+                NetworkClient.localPlayer.GetComponent<PlayerStats>().CmdTriggerGameOver();
             }
         }
     }
 
     void Update()
     {
-        // STOP THE OTHER PLAYER FROM MOVING MY BLOCK
         if (!isOwned) return;
 
-        // --- MOVEMENT LOGIC ---
-
-        // Move Left
-        if (Input.GetKeyDown(KeyCode.LeftArrow))
+        float speedMultiplier = 1.0f;
+        PlayerStats stats = NetworkClient.localPlayer.GetComponent<PlayerStats>();
+        if (stats != null)
         {
-            transform.position += new Vector3(-1, 0, 0);
-            if (IsValidGridPos())
-                UpdateGrid();
-            else
-                transform.position += new Vector3(1, 0, 0);
+            speedMultiplier = Mathf.Max(0.1f, 1.0f - (stats.level * 0.1f));
         }
 
-        // Move Right
-        if (Input.GetKeyDown(KeyCode.RightArrow))
-        {
-            transform.position += new Vector3(1, 0, 0);
-            if (IsValidGridPos())
-                UpdateGrid();
-            else
-                transform.position += new Vector3(-1, 0, 0);
-        }
-
-        // Rotate
-        if (Input.GetKeyDown(KeyCode.UpArrow))
-        {
-            transform.Rotate(0, 0, -90);
-            if (IsValidGridPos())
-                UpdateGrid();
-            else
-                transform.Rotate(0, 0, 90);
-        }
-
-        // HARD DROP (Spacebar)
+        // HARD DROP FIX
         if (Input.GetKeyDown(KeyCode.Space))
         {
             while (IsValidGridPos())
             {
-                transform.position += new Vector3(0, -1, 0);
+                transform.position += Vector3.down;
             }
-
-            // Step back up one unit
-            transform.position += new Vector3(0, 1, 0);
-
-            UpdateGrid();
-
-            if (board != null) board.DeleteFullRows();
-
-            enabled = false;
-
-            // Spawn next block
-            if (NetworkClient.localPlayer != null)
-            {
-                NetworkClient.localPlayer.GetComponent<PlayerController>().CmdSpawnBlock();
-            }
-
-            return;
+            transform.position += Vector3.up; // Move back into valid space
+            UpdateGrid(); // Crucial: Tell the board where we landed
+            LockPiece();
+            return; // Exit update immediately
         }
 
-        // Move Down / Fall
-        if (Input.GetKeyDown(KeyCode.DownArrow) || Time.time - lastFall >= 1)
+        // Fall logic
+        if (Input.GetKeyDown(KeyCode.DownArrow) || Time.time - lastFall >= speedMultiplier)
         {
-            transform.position += new Vector3(0, -1, 0);
-
+            transform.position += Vector3.down;
             if (IsValidGridPos())
             {
                 UpdateGrid();
             }
             else
             {
-                // LANDED LOGIC
-                transform.position += new Vector3(0, 1, 0);
-
-                if (board != null)
-                {
-                    board.DeleteFullRows();
-                }
-
-                enabled = false;
-
-                // Spawn the next block
-                if (NetworkClient.localPlayer != null)
-                {
-                    NetworkClient.localPlayer.GetComponent<PlayerController>().CmdSpawnBlock();
-                }
+                transform.position += Vector3.up;
+                LockPiece();
             }
             lastFall = Time.time;
         }
+
+        if (Input.GetKeyDown(KeyCode.LeftArrow)) Move(Vector3.left);
+        if (Input.GetKeyDown(KeyCode.RightArrow)) Move(Vector3.right);
+        if (Input.GetKeyDown(KeyCode.UpArrow))
+        {
+            transform.Rotate(0, 0, -90);
+            if (!IsValidGridPos()) transform.Rotate(0, 0, 90);
+            else UpdateGrid();
+        }
     }
 
-    // --- HELPER FUNCTIONS ---
+    void Move(Vector3 dir)
+    {
+        transform.position += dir;
+        if (IsValidGridPos()) UpdateGrid();
+        else transform.position -= dir;
+    }
+
+    void LockPiece()
+    {
+        if (board != null) board.DeleteFullRows();
+        this.enabled = false;
+        if (NetworkClient.localPlayer != null)
+            NetworkClient.localPlayer.GetComponent<PlayerController>().CmdSpawnBlock();
+    }
 
     bool IsValidGridPos()
     {
         if (board == null) return false;
-
         foreach (Transform child in transform)
         {
             Vector2 v = board.RoundVec2(child.position);
-
-            if (!board.InsideBorder(v))
-                return false;
-
-            // Check if another block is already there
+            if (!board.InsideBorder(v)) return false;
             Vector2Int idx = board.GetGridIndex(v);
-            if (board.grid[idx.x, idx.y] != null &&
-                board.grid[idx.x, idx.y].parent != transform)
+            if (board.grid[idx.x, idx.y] != null && board.grid[idx.x, idx.y].parent != transform)
                 return false;
         }
         return true;
@@ -165,8 +116,6 @@ public class Piece : NetworkBehaviour
     public void UpdateGrid()
     {
         if (board == null) return;
-
-        // Clear old positions
         for (int y = 0; y < board.height; y++)
         {
             for (int x = 0; x < board.width; x++)
@@ -175,8 +124,6 @@ public class Piece : NetworkBehaviour
                     board.grid[x, y] = null;
             }
         }
-
-        // Set new positions
         foreach (Transform child in transform)
         {
             Vector2 v = board.RoundVec2(child.position);
