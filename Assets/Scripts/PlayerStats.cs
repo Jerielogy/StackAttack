@@ -31,6 +31,7 @@ public class PlayerStats : NetworkBehaviour
 
     public override void OnStartClient()
     {
+        // Identify the correct canvas based on the player index
         string canvasName = (playerIndex == 0) ? "Canvas_P1" : "Canvas_P2";
         GameObject canvas = GameObject.Find(canvasName);
         if (canvas == null) return;
@@ -38,6 +39,7 @@ public class PlayerStats : NetworkBehaviour
         scoreText = canvas.transform.Find("ScoreText")?.GetComponent<TextMeshProUGUI>();
         levelText = canvas.transform.Find("LevelText")?.GetComponent<TextMeshProUGUI>();
 
+        // Find the GameOver panel inside the canvas
         foreach (Transform t in canvas.GetComponentsInChildren<Transform>(true))
         {
             if (t.name.ToLower().Contains("gameover"))
@@ -50,11 +52,12 @@ public class PlayerStats : NetworkBehaviour
         UpdateUI();
     }
 
-    // ---------------- SCORE ----------------
+    // ---------------- UNIFIED PROCESSOR ----------------
 
     [Command]
-    public void CmdAddScore(int linesCleared)
+    public void CmdProcessLineClears(int linesCleared)
     {
+        // 1. Calculate Score (Nintendo System)
         int basePoints = linesCleared switch
         {
             1 => 40,
@@ -66,14 +69,26 @@ public class PlayerStats : NetworkBehaviour
 
         score += basePoints * (level + 1);
 
+        // 2. Process Leveling
         linesClearedTotal += linesCleared;
-
         while (linesClearedTotal >= (level + 1) * 10)
         {
             level++;
-            Debug.Log("Level Up! Current Level: " + level);
+            Debug.Log($"Player {playerIndex} Leveled Up! Current Level: {level}");
+        }
+
+        // 3. Process Garbage Attack
+        if (linesCleared > 1)
+        {
+            GarbageManager gm = FindObjectOfType<GarbageManager>();
+            if (gm != null)
+            {
+                gm.SendGarbage(linesCleared, playerIndex);
+            }
         }
     }
+
+    // ---------------- UI UPDATES ----------------
 
     void UpdateUI()
     {
@@ -84,8 +99,8 @@ public class PlayerStats : NetworkBehaviour
             levelText.text = "LEVEL: " + level;
     }
 
-    void OnScoreChanged(int _, int __) => UpdateUI();
-    void OnLevelChanged(int _, int __) => UpdateUI();
+    void OnScoreChanged(int oldVal, int newVal) => UpdateUI();
+    void OnLevelChanged(int oldVal, int newVal) => UpdateUI();
 
     // ---------------- GAME OVER ----------------
 
@@ -93,7 +108,8 @@ public class PlayerStats : NetworkBehaviour
     public void CmdTriggerGameOver()
     {
         TargetShowGameOver(connectionToClient);
-        GameStateManager.Instance.RegisterGameOver();
+        if (GameStateManager.Instance != null)
+            GameStateManager.Instance.RegisterGameOver();
     }
 
     [TargetRpc]

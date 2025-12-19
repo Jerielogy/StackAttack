@@ -33,18 +33,22 @@ public class GarbageManager : NetworkBehaviour
 
     void AddPermanentGarbageLine(BoardManager board)
     {
-        // 1. Shift existing blocks up
-        Piece[] allPieces = FindObjectsOfType<Piece>(true);
-        foreach (Piece piece in allPieces)
+        // 1. Shift ALL visual blocks currently in the grid UP
+        // We loop through the board and move anything that isn't null
+        for (int y = board.height - 1; y >= 0; y--)
         {
-            if (Vector3.Distance(piece.transform.position, board.transform.position) > 20) continue;
-
-            piece.transform.position += Vector3.up;
-            // No need to call UpdateGrid here, DecreaseRow/IncreaseRow logic handles it better
+            for (int x = 0; x < board.width; x++)
+            {
+                if (board.grid[x, y] != null)
+                {
+                    // Physically move the block up in the world
+                    board.grid[x, y].position += Vector3.up;
+                }
+            }
         }
 
-        // 2. Logic Shift: We must shift the INTERNAL grid array up too!
-        // If we don't do this, the garbage row overwrites what was already there.
+        // 2. Shift the LOGICAL grid references UP by 1
+        // We start from the top so we don't overwrite data as we go
         for (int y = board.height - 1; y > 0; y--)
         {
             for (int x = 0; x < board.width; x++)
@@ -53,22 +57,22 @@ public class GarbageManager : NetworkBehaviour
             }
         }
 
-        // 3. Pick a random hole
-        int holeX = Random.Range(0, board.width);
-
-        // 4. Spawn the row at y = 0
+        // 3. Clear the bottom row logically to prepare for new garbage
         for (int x = 0; x < board.width; x++)
         {
-            if (x == holeX)
-            {
-                board.grid[x, 0] = null; // Ensure the hole is empty in logic
-                continue;
-            }
+            board.grid[x, 0] = null;
+        }
+
+        // 4. Spawn the new row with a hole
+        int holeX = Random.Range(0, board.width);
+        for (int x = 0; x < board.width; x++)
+        {
+            if (x == holeX) continue;
 
             Vector3 pos = board.transform.position + new Vector3(x, 0, 0);
             GameObject block = Instantiate(garbageBlockPrefab, pos, Quaternion.identity);
 
-            // CRITICAL FIX: Assign the transform to the grid so pieces collide with it
+            // Register in the grid
             board.grid[x, 0] = block.transform;
         }
     }

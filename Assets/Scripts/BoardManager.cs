@@ -47,26 +47,18 @@ public class BoardManager : NetworkBehaviour
         }
 
         // 2. TRIGGER SCORE AND ATTACK (The part I previously omitted)
+        // Inside BoardManager.cs, update the trigger section:
+        // Inside BoardManager.cs -> DeleteFullRows()
+
         if (linesThisTurn > 0)
         {
-            AudioManager.Instance.PlayClear();
-            // Update local player stats
             if (NetworkClient.localPlayer != null)
             {
                 PlayerStats stats = NetworkClient.localPlayer.GetComponent<PlayerStats>();
                 if (stats != null)
                 {
-                    stats.CmdAddScore(linesThisTurn);
-                }
-            }
-
-            // Send garbage to opponent (Server Only)
-            if (isServer)
-            {
-                GarbageManager gm = FindObjectOfType<GarbageManager>();
-                if (gm != null)
-                {
-                    gm.SendGarbage(linesThisTurn, playerIndex);
+                    // Call the new unified command
+                    stats.CmdProcessLineClears(linesThisTurn);
                 }
             }
         }
