@@ -6,13 +6,13 @@ public class PlayerStats : NetworkBehaviour
 {
     private TextMeshProUGUI scoreText;
     private TextMeshProUGUI levelText;
-    private GameObject gameOverObject;
+    private GameObject gameOverPanel;
 
     [SyncVar(hook = nameof(OnScoreChanged))]
     public int score;
 
     [SyncVar(hook = nameof(OnLevelChanged))]
-    public int level = 0; // Starts at 0 (Nintendo rules)
+    public int level = 0;
 
     [SyncVar]
     public int linesClearedTotal = 0;
@@ -20,32 +20,37 @@ public class PlayerStats : NetworkBehaviour
     [SyncVar]
     public int playerIndex;
 
+    // ---------------- SERVER ----------------
+
     public override void OnStartServer()
     {
         playerIndex = connectionToClient.connectionId;
     }
 
+    // ---------------- CLIENT ----------------
+
     public override void OnStartClient()
     {
         string canvasName = (playerIndex == 0) ? "Canvas_P1" : "Canvas_P2";
         GameObject canvas = GameObject.Find(canvasName);
+        if (canvas == null) return;
 
-        if (canvas != null)
+        scoreText = canvas.transform.Find("ScoreText")?.GetComponent<TextMeshProUGUI>();
+        levelText = canvas.transform.Find("LevelText")?.GetComponent<TextMeshProUGUI>();
+
+        foreach (Transform t in canvas.GetComponentsInChildren<Transform>(true))
         {
-            scoreText = canvas.transform.Find("ScoreText")?.GetComponent<TextMeshProUGUI>();
-            levelText = canvas.transform.Find("LevelText")?.GetComponent<TextMeshProUGUI>();
-
-            foreach (Transform t in canvas.GetComponentsInChildren<Transform>(true))
+            if (t.name.ToLower().Contains("gameover"))
             {
-                if (t.name.ToLower().Contains("gameover"))
-                {
-                    gameOverObject = t.gameObject;
-                    gameOverObject.SetActive(false);
-                }
+                gameOverPanel = t.gameObject;
+                gameOverPanel.SetActive(false);
             }
-            UpdateUI();
         }
+
+        UpdateUI();
     }
+
+    // ---------------- SCORE ----------------
 
     [Command]
     public void CmdAddScore(int linesCleared)
@@ -59,36 +64,42 @@ public class PlayerStats : NetworkBehaviour
             _ => 0
         };
 
-        // Nintendo Formula: Score += Base * (Level + 1)
         score += basePoints * (level + 1);
 
-        // Logic: Level up every 10 lines
         linesClearedTotal += linesCleared;
         if (linesClearedTotal >= (level + 1) * 10)
-        {
             level++;
-        }
     }
 
     void UpdateUI()
     {
-        if (scoreText != null) scoreText.text = "SCORE: " + score;
-        if (levelText != null) levelText.text = "LEVEL: " + level;
+        if (scoreText != null)
+            scoreText.text = "SCORE: " + score;
+
+        if (levelText != null)
+            levelText.text = "LEVEL: " + level;
     }
 
-    public void OnScoreChanged(int oldScore, int newScore) => UpdateUI();
-    public void OnLevelChanged(int oldLevel, int newLevel) => UpdateUI();
+    void OnScoreChanged(int _, int __) => UpdateUI();
+    void OnLevelChanged(int _, int __) => UpdateUI();
+
+    // ---------------- GAME OVER ----------------
 
     [Command]
-    public void CmdTriggerGameOver() => TargetGameOver();
+    public void CmdTriggerGameOver()
+    {
+        TargetShowGameOver(connectionToClient);
+        GameStateManager.Instance.RegisterGameOver();
+    }
 
     [TargetRpc]
-    public void TargetGameOver()
+    void TargetShowGameOver(NetworkConnection target)
     {
-        if (gameOverObject != null) gameOverObject.SetActive(true);
-        if (scoreText != null) scoreText.color = Color.red;
+        if (gameOverPanel != null)
+            gameOverPanel.SetActive(true);
 
         PlayerController pc = GetComponent<PlayerController>();
-        if (pc != null) pc.enabled = false;
+        if (pc != null)
+            pc.enabled = false;
     }
 }
