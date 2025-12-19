@@ -1,10 +1,11 @@
 using UnityEngine;
 using UnityEngine.UI;
 using Mirror;
+using TMPro;
 
 public class MainMenu : MonoBehaviour
 {
-    public InputField addressInput;
+    public TMP_InputField addressInput;
     NetworkManager networkManager;
 
     void Start()

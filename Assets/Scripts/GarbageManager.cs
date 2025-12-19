@@ -1,19 +1,18 @@
 using UnityEngine;
 using Mirror;
-using System.Collections;
 
 public class GarbageManager : NetworkBehaviour
 {
     public BoardManager boardP1;
     public BoardManager boardP2;
     public GameObject garbageBlockPrefab;
-    public float garbageDuration = 5f;
 
     [Server]
     public void SendGarbage(int lines, int senderPlayerIndex)
     {
         if (lines <= 1) return;
 
+        // Nintendo/Classic scaling
         int garbageLines = lines switch { 2 => 1, 3 => 2, 4 => 4, _ => lines };
         int targetIndex = (senderPlayerIndex == 0) ? 1 : 0;
 
@@ -28,47 +27,49 @@ public class GarbageManager : NetworkBehaviour
 
         for (int i = 0; i < garbageLines; i++)
         {
-            StartCoroutine(AddTemporaryGarbageLine(targetBoard));
+            AddPermanentGarbageLine(targetBoard);
         }
     }
 
-    IEnumerator AddTemporaryGarbageLine(BoardManager board)
+    void AddPermanentGarbageLine(BoardManager board)
     {
-        // Shift existing blocks up
+        // 1. Shift existing blocks up
         Piece[] allPieces = FindObjectsOfType<Piece>(true);
         foreach (Piece piece in allPieces)
         {
             if (Vector3.Distance(piece.transform.position, board.transform.position) > 20) continue;
+
             piece.transform.position += Vector3.up;
-            piece.UpdateGrid();
+            // No need to call UpdateGrid here, DecreaseRow/IncreaseRow logic handles it better
         }
 
-        // Spawn Garbage Row
-        Transform[] rowItems = new Transform[board.width];
-        for (int x = 0; x < board.width; x++)
+        // 2. Logic Shift: We must shift the INTERNAL grid array up too!
+        // If we don't do this, the garbage row overwrites what was already there.
+        for (int y = board.height - 1; y > 0; y--)
         {
-            Vector3 pos = board.transform.position + new Vector3(x, 0, 0);
-            GameObject block = Instantiate(garbageBlockPrefab, pos, Quaternion.identity);
-            rowItems[x] = block.transform;
-            board.grid[x, 0] = rowItems[x];
-        }
-
-        yield return new WaitForSeconds(garbageDuration);
-
-        // Remove Garbage
-        for (int x = 0; x < board.width; x++)
-        {
-            if (rowItems[x] != null)
+            for (int x = 0; x < board.width; x++)
             {
-                Destroy(rowItems[x].gameObject);
-                board.grid[x, 0] = null;
+                board.grid[x, y] = board.grid[x, y - 1];
             }
         }
 
-        // Shift everything back down
-        for (int y = 1; y < board.height; y++)
+        // 3. Pick a random hole
+        int holeX = Random.Range(0, board.width);
+
+        // 4. Spawn the row at y = 0
+        for (int x = 0; x < board.width; x++)
         {
-            board.DecreaseRow(y);
+            if (x == holeX)
+            {
+                board.grid[x, 0] = null; // Ensure the hole is empty in logic
+                continue;
+            }
+
+            Vector3 pos = board.transform.position + new Vector3(x, 0, 0);
+            GameObject block = Instantiate(garbageBlockPrefab, pos, Quaternion.identity);
+
+            // CRITICAL FIX: Assign the transform to the grid so pieces collide with it
+            board.grid[x, 0] = block.transform;
         }
     }
 }

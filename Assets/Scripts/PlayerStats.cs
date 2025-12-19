@@ -67,8 +67,12 @@ public class PlayerStats : NetworkBehaviour
         score += basePoints * (level + 1);
 
         linesClearedTotal += linesCleared;
-        if (linesClearedTotal >= (level + 1) * 10)
+
+        while (linesClearedTotal >= (level + 1) * 10)
+        {
             level++;
+            Debug.Log("Level Up! Current Level: " + level);
+        }
     }
 
     void UpdateUI()

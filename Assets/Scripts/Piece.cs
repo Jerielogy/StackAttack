@@ -48,14 +48,18 @@ public class Piece : NetworkBehaviour
         // HARD DROP FIX
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            while (IsValidGridPos())
+            while (true)
             {
                 transform.position += Vector3.down;
+                if (!IsValidGridPos())
+                {
+                    transform.position += Vector3.up; // Move back to last valid spot
+                    break; // Hit the floor or garbage
+                }
             }
-            transform.position += Vector3.up; // Move back into valid space
-            UpdateGrid(); // Crucial: Tell the board where we landed
+            UpdateGrid();
             LockPiece();
-            return; // Exit update immediately
+            return;
         }
 
         // Fall logic
@@ -74,21 +78,36 @@ public class Piece : NetworkBehaviour
             lastFall = Time.time;
         }
 
-        if (Input.GetKeyDown(KeyCode.LeftArrow)) Move(Vector3.left);
-        if (Input.GetKeyDown(KeyCode.RightArrow)) Move(Vector3.right);
+        if (Input.GetKeyDown(KeyCode.LeftArrow)) { if (Move(Vector3.left)) AudioManager.Instance.PlayMove(); }
+        if (Input.GetKeyDown(KeyCode.RightArrow)) { if (Move(Vector3.right)) AudioManager.Instance.PlayMove(); }
         if (Input.GetKeyDown(KeyCode.UpArrow))
         {
             transform.Rotate(0, 0, -90);
-            if (!IsValidGridPos()) transform.Rotate(0, 0, 90);
-            else UpdateGrid();
+            if (!IsValidGridPos())
+            {
+                transform.Rotate(0, 0, 90); // Failed to rotate
+            }
+            else
+            {
+                UpdateGrid();
+                AudioManager.Instance.PlayMove(); // Only play if rotation worked!
+            }
         }
     }
 
-    void Move(Vector3 dir)
+    bool Move(Vector3 dir) // Change 'void' to 'bool'
     {
         transform.position += dir;
-        if (IsValidGridPos()) UpdateGrid();
-        else transform.position -= dir;
+        if (IsValidGridPos())
+        {
+            UpdateGrid();
+            return true; // The move worked!
+        }
+        else
+        {
+            transform.position -= dir;
+            return false; // The move failed (hit a wall/block)
+        }
     }
 
     void LockPiece()
